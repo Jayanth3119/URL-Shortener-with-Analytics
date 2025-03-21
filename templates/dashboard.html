@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #3D52A0,  #8697C4, #7091E6, #3D52A0);
+            color: #343a40;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1, h2 {
+            color: white;
+            text-align: center;
+        }
+
+        .dashboard-container {
+            width: 80%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        input[type="url"] {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 14px;
+            color: white;
+        }
+
+        button.primary {
+            background-color: #007bff;
+        }
+
+        button.primary:hover {
+            background-color: #0056b3;
+        }
+
+        button.secondary {
+            background-color: #6c757d;
+        }
+
+        button.secondary:hover {
+            background-color: #5a6268;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            color: white;
+        }
+
+        .original-url-box {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            word-break: break-word;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .navigation {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .navigation a {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .navigation a:hover {
+            background-color: #0056b3;
+        }
+        a{
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>Welcome, {{ user.name }}!</h1>
+        <p>Email: {{ user.email }}</p>
+
+        <h2>Shorten URL</h2>
+        <form method="post">
+            <input type="url" name="original_url" placeholder="Enter URL to shorten" required>
+            <button type="submit" class="primary">Shorten</button>
+        </form>
+
+        <h2>Your Shortened URLs</h2>
+        <ul>
+            {% for url in user_urls %}
+            <li>
+                <span id="short-url-{{ url.short_url }}"><a href="/s/{{ url.short_url }}" target="_blank">/s/{{ url.short_url }}</a></span>
+                <div class="original-url-box">{{ url.original_url }}</div>
+                (Clicks: {{ url.clicks }})
+                <div class="button-group">
+                    <button class="primary" onclick="copyToClipboard('{{ base_url }}/s/{{ url.short_url }}')">Copy Link</button>
+                    <button class="secondary"><a href="/analytics/{{ url.short_url }}" style="color: white; text-decoration: none;">Analytics</a></button>
+                </div>
+                <br>
+                Created at: {{ url.created_at }}<br>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="navigation">
+        <a href="/logout">Logout</a>
+    </div>
+
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Link copied to clipboard!');
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
+</body>
+</html>

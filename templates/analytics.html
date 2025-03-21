@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analytics for {{ url_data.short_url }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, #3D52A0, #7091E6, #8697C4, #ADBBDA, #EDE8F5);
+            margin: 0;
+            padding: 20px;
+            color: #343a40;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+
+        .analytics-container {
+            width: 80%;
+            max-width: 800px; /* Increased width for chart */
+            background: linear-gradient(to bottom, #3D52A0, #7091E6, #8697C4, #ADBBDA, #EDE8F5);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(5, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        a:hover {
+            color: #0056b3;
+        }
+
+        p {
+            margin-bottom: 20px;
+        }
+
+        .total-clicks {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px; /* Adjust height as needed */
+            margin-bottom: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="analytics-container">
+        <h1>Analytics for {{ url_data.short_url }}</h1>
+        <p>Original URL: {{ url_data.original_url }}</p>
+        <p class="total-clicks">Total Clicks: <span id="clickCount">{{ url_data.clicks }}</span></p>
+
+        <h2>Clicks Over Time</h2>
+        <div class="chart-container">
+            <canvas id="clicksChart"></canvas>
+        </div>
+
+        <a href="/dashboard">Back to Dashboard</a>
+    </div>
+
+    <script>
+        let myChart;
+        const shortUrl = '{{ url_data.short_url }}';
+
+        function updateChart(clickers) {
+            const aggregatedClicks = {};
+            clickers.forEach(clicker => {
+                const date = new Date(clicker.clicked_at);
+                const interval = date.toLocaleString().split(',')[0] + ', '+ date.toLocaleString().split(',')[1].split(':')[0] + ':00';
+
+                if (aggregatedClicks[interval]) {
+                    aggregatedClicks[interval]++;
+                } else {
+                    aggregatedClicks[interval] = 1;
+                }
+            });
+
+            const labels = Object.keys(aggregatedClicks).sort();
+            const data = labels.map(label => aggregatedClicks[label]);
+
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            const ctx = document.getElementById('clicksChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Clicks',
+                        data: data,
+                        backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Clicks'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time Interval'
+                            }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function fetchUpdatedData() {
+            fetch(`/get_clicks/${shortUrl}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('clickCount').textContent = data.clicks;
+                });
+        }
+
+        // Initialize chart with initial data
+        updateChart(JSON.parse('{{ url_data.clickers | tojson | safe }}'));
+
+        // Update click count every 5 seconds
+        setInterval(fetchUpdatedData, 5000);
+    </script>
+</body>
+</html>
