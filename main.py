@@ -129,7 +129,7 @@ def analytics(short_url):
             return "Unauthorized or URL not found", 403
     else:
         return redirect(url_for("login"))
-    
+
 @app.route("/get_clicks/<short_url>")
 def get_clicks(short_url):
     url_data = urls_collection.find_one({"short_url": short_url})

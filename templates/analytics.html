@@ -21,7 +21,7 @@
 
         .analytics-container {
             width: 80%;
-            max-width: 800px; /* Increased width for chart */
+            max-width: 800px;
             background: linear-gradient(to bottom, #3D52A0, #7091E6, #8697C4, #ADBBDA, #EDE8F5);
             padding: 20px;
             border-radius: 8px;
@@ -66,8 +66,28 @@
 
         .chart-container {
             width: 100%;
-            height: 400px; /* Adjust height as needed */
+            height: 400px;
             margin-bottom: 20px;
+        }
+        .filter-buttons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .filter-buttons button {
+            margin: 0 5px;
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .filter-buttons button:hover {
+            background-color: #0056b3;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -77,6 +97,13 @@
         <h1>Analytics for {{ url_data.short_url }}</h1>
         <p>Original URL: {{ url_data.original_url }}</p>
         <p class="total-clicks">Total Clicks: <span id="clickCount">{{ url_data.clicks }}</span></p>
+
+        <div class="filter-buttons">
+            <button onclick="updateChartData('day')">Last Day</button>
+            <button onclick="updateChartData('week')">Last Week</button>
+            <button onclick="updateChartData('month')">Last Month</button>
+            <button onclick="updateChartData('year')">Last Year</button>
+        </div>
 
         <h2>Clicks Over Time</h2>
         <div class="chart-container">
@@ -89,12 +116,33 @@
     <script>
         let myChart;
         const shortUrl = '{{ url_data.short_url }}';
+        let allClickers = JSON.parse('{{ url_data.clickers | tojson | safe }}');
 
-        function updateChart(clickers) {
+        function aggregateClicks(clickers, intervalType) {
             const aggregatedClicks = {};
             clickers.forEach(clicker => {
                 const date = new Date(clicker.clicked_at);
-                const interval = date.toLocaleString().split(',')[0] + ', '+ date.toLocaleString().split(',')[1].split(':')[0] + ':00';
+                let interval;
+
+                switch (intervalType) {
+                    case 'day':
+                        interval = date.toLocaleString().split(',')[0] + ', ' + date.toLocaleString().split(',')[1].split(':')[0] + ':00';
+                        break;
+                    case 'week':
+                        const dayOfWeek = date.getDay();
+                        const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                        const firstDayOfWeek = new Date(date.setDate(diff));
+                        interval = firstDayOfWeek.toISOString().split('T')[0];
+                        break;
+                    case 'month':
+                        interval = date.toISOString().split('T')[0].substring(0, 7);
+                        break;
+                    case 'year':
+                        interval = date.toISOString().split('T')[0].substring(0, 4);
+                        break;
+                    default:
+                        interval = date.toISOString().split('T')[0];
+                }
 
                 if (aggregatedClicks[interval]) {
                     aggregatedClicks[interval]++;
@@ -105,7 +153,10 @@
 
             const labels = Object.keys(aggregatedClicks).sort();
             const data = labels.map(label => aggregatedClicks[label]);
+            return { labels, data };
+        }
 
+        function updateChart(labels, data) {
             if (myChart) {
                 myChart.destroy();
             }
@@ -150,14 +201,58 @@
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('clickCount').textContent = data.clicks;
+                    allClickers = data.clickers;
+                    updateChartData('day');
                 });
         }
 
-        // Initialize chart with initial data
-        updateChart(JSON.parse('{{ url_data.clickers | tojson | safe }}'));
+        function filterClickers(intervalType) {
+            const now = new Date();
+            let filteredClickers;
 
-        // Update click count every 5 seconds
-        setInterval(fetchUpdatedData, 5000);
+            switch (intervalType) {
+                case 'day':
+                    filteredClickers = allClickers.filter(clicker => {
+                        const clickDate = new Date(clicker.clicked_at);
+                        return now - clickDate < 24 * 60 * 60 * 1000;
+                    });
+                    break;
+                case 'week':
+                    filteredClickers = allClickers.filter(clicker => {
+                        const clickDate = new Date(clicker.clicked_at);
+                        return now - clickDate < 7 * 24 * 60 * 60 * 1000;
+                    });
+                    break;
+                case 'month':
+                    filteredClickers = allClickers.filter(clicker => {
+                        const clickDate = new Date(clicker.clicked_at);
+                        return now.getMonth() === clickDate.getMonth() && now.getFullYear() === clickDate.getFullYear();
+                    });
+                    break;
+                case 'year':
+                    filteredClickers = allClickers.filter(clicker => {
+                        const clickDate = new Date(clicker.clicked_at);
+                        return now.getFullYear() === clickDate.getFullYear();
+                    });
+                    break;
+                default:
+                    filteredClickers = allClickers;
+            }
+            return filteredClickers;
+        }
+
+        function updateChartData(intervalType) {
+            const filteredClickers = filterClickers(intervalType);
+            const { labels, data } = aggregateClicks(filteredClickers, intervalType);
+            updateChart(labels, data);
+        }
+
+        // Initialize chart with daily data
+        window.onload = function() {
+            updateChartData('day');
+            // Poll for updates every minute
+            setInterval(fetchUpdatedData, 60000);
+        };
     </script>
 </body>
 </html>
